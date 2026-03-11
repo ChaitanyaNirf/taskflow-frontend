@@ -43,6 +43,7 @@ const ProjectBoard: React.FC = () => {
   const [taskDesc, setTaskDesc] = useState('');
   const [taskPriority, setTaskPriority] = useState('MEDIUM');
   const [taskStatus, setTaskStatus] = useState('OPEN');
+  const [taskAssigneeId, setTaskAssigneeId] = useState('');
   const [taskSubmitting, setTaskSubmitting] = useState(false);
   const [taskError, setTaskError] = useState('');
 
@@ -137,6 +138,7 @@ const ProjectBoard: React.FC = () => {
         description: taskDesc,
         priority: taskPriority,
         status: taskStatus,
+        assigneeId: taskAssigneeId || null,
         projectId: id
       });
       setShowTaskModal(false);
@@ -144,6 +146,7 @@ const ProjectBoard: React.FC = () => {
       setTaskDesc('');
       setTaskPriority('MEDIUM');
       setTaskStatus('OPEN');
+      setTaskAssigneeId('');
       fetchProjectAndTasks();
     } catch (error: any) {
       setTaskError(error.response?.data?.error || 'Failed to create task');
@@ -273,6 +276,19 @@ const ProjectBoard: React.FC = () => {
                   required
                   style={{ resize: 'vertical' }}
                 />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Assignee</label>
+                <select 
+                  className="input-field" 
+                  value={taskAssigneeId}
+                  onChange={e => setTaskAssigneeId(e.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {project?.members?.map((m: any) => (
+                    <option key={m.userId} value={m.userId}>{m.user.name}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <div className="input-group" style={{ flex: 1 }}>

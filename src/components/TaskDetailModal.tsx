@@ -32,6 +32,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, projectMember
 
   // Files
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchTask = async () => {
@@ -83,7 +84,42 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, projectMember
       console.error('Failed to upload files:', err);
     } finally {
       setUploading(false);
+      setIsDragging(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('taskId', taskId);
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          formData.append('files', e.dataTransfer.files[i]);
+        }
+        await api.post('/files/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        fetchTask();
+      } catch (err) {
+        console.error('Failed to upload files on drop:', err);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -328,7 +364,19 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, projectMember
         <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', marginBottom: '1.5rem' }} />
 
         {/* Attachments Section */}
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div 
+          style={{ 
+            marginBottom: '1.5rem', 
+            padding: '1rem', 
+            border: isDragging ? '2px dashed var(--accent-primary)' : '2px dashed transparent',
+            borderRadius: '8px',
+            backgroundColor: isDragging ? 'rgba(94, 106, 210, 0.05)' : 'transparent',
+            transition: 'all 0.2s'
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Paperclip size={16} /> Attachments ({task.files?.length || 0})
@@ -345,7 +393,13 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, projectMember
             </label>
           </div>
 
-          {task.files && task.files.length > 0 ? (
+          {isDragging && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--accent-primary)', fontWeight: 600 }}>
+              Drop files here to upload
+            </div>
+          )}
+
+          {!isDragging && task.files && task.files.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {task.files.map((f: any) => (
                 <div key={f.id} style={{
@@ -391,7 +445,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, projectMember
             </div>
           ) : (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '0.75rem 0' }}>
-              No files attached. Upload files to share with the team.
+              No files attached. Upload files or drag and drop here.
             </p>
           )}
         </div>

@@ -1,25 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
   ArcElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
 import { BarChart3, TrendingUp, Users, Clock, Download } from 'lucide-react';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend);
 
 const Analytics: React.FC = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [overview, setOverview] = useState<any>(null);
   const [performance, setPerformance] = useState<any>(null);
+  const [trends, setTrends] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,12 +45,14 @@ const Analytics: React.FC = () => {
     const fetchAnalytics = async () => {
       setLoading(true);
       try {
-        const [overviewRes, perfRes] = await Promise.all([
+        const [overviewRes, perfRes, trendsRes] = await Promise.all([
           api.get(`/analytics/${selectedProject}/overview`),
-          api.get(`/analytics/${selectedProject}/performance`)
+          api.get(`/analytics/${selectedProject}/performance`),
+          api.get(`/analytics/${selectedProject}/trends`)
         ]);
         setOverview(overviewRes.data);
         setPerformance(perfRes.data);
+        setTrends(trendsRes.data);
       } catch (err) {
         console.error('Failed to fetch analytics:', err);
       } finally {
@@ -104,6 +109,38 @@ const Analytics: React.FC = () => {
       borderWidth: 0,
     }]
   } : null;
+
+  // Process trends data
+  let trendChartData = null;
+  if (trends) {
+    const dates = Object.keys(trends).sort();
+    trendChartData = {
+      labels: dates.map(d => {
+        const [, m, day] = d.split('-');
+        return `${m}/${day}`;
+      }),
+      datasets: [
+        {
+          label: 'Created',
+          data: dates.map(d => trends[d].created),
+          borderColor: '#1f6feb',
+          backgroundColor: 'rgba(31, 111, 235, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3
+        },
+        {
+          label: 'Resolved',
+          data: dates.map(d => trends[d].resolved),
+          borderColor: '#238636',
+          backgroundColor: 'rgba(35, 134, 54, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3
+        }
+      ]
+    };
+  }
 
   const chartOptions = {
     responsive: true,
@@ -215,6 +252,12 @@ const Analytics: React.FC = () => {
           <h3>Priority Distribution</h3>
           <div style={{ height: '300px' }}>
             {priorityChartData && <Doughnut data={priorityChartData} options={doughnutOptions} />}
+          </div>
+        </div>
+        <div className="chart-card" style={{ gridColumn: '1 / -1' }}>
+          <h3>Task Trends (Last 30 Days)</h3>
+          <div style={{ height: '300px' }}>
+            {trendChartData && <Line data={trendChartData} options={{...chartOptions, plugins: { legend: { display: true, position: 'bottom', labels: { color: chartTextColor } } }}} />}
           </div>
         </div>
       </div>
